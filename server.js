@@ -17,18 +17,22 @@ var app = express();
 var PORT = process.env.PORT || 7000;
 
 /*-------------------------------------------------
-  HANDLEBAR LAYOUTS
+  LOGGER & BODY PARSER SET UP
+-------------------------------------------------*/
+app.use(logger('dev'));
+app.use(bodyParser.urlencoded({
+  extended: false
+}));
+
+/*-------------------------------------------------
+  HANDLEBAR SETUP
 -------------------------------------------------*/
 
 app.engine('handlebars', expressHandlebars({
   defaultLayout: 'main'
 }));
-app.set('view engine', 'handlebars');
 
-app.use(logger('dev'));
-app.use(bodyParser.urlencoded({
-  extended: false
-}));
+app.set('view engine', 'handlebars');
 
 /*-------------------------------------------------
   ACCESS TO PUBLIC FOLDER
@@ -37,7 +41,7 @@ app.use(bodyParser.urlencoded({
 app.use(express.static("public"));
 
 /*-------------------------------------------------
-  DATABASE CONNECTION & CONFIG - MONGO DB
+  DATABASE CONFIG
 -------------------------------------------------*/
 
 mongoose.connect('mongodb://localhost/scrapingApp');
@@ -50,20 +54,58 @@ db.once('open', function() {
   console.log('Mongoose connection successful.');
 });
 
-var mongojs = require('mongojs');
-var databaseUrl = "scraper";
-var collections = ["scrapedData"];
-var db = mongojs(databaseUrl, collections);
-db.on('error', function(err) {
-  console.log('Database Error:', err);
-});
-
 /*-------------------------------------------------
-  REQUIRING MODELS
+  REQUIRING MODELS/SCHEMA
 -------------------------------------------------*/
 
 var Note = require('./models/noteModel.js');
-var Data = require('./models/dataModel.js');
+var Article = require('./models/articleModel.js');
+
+/*-------------------------------------------------
+  ROUTES
+-------------------------------------------------*/
+app.get("/", function (req, res) {
+  res.render("index");
+});
+
+/*-------------------------------------------------
+  SCRAPE TO DB
+-------------------------------------------------*/
+
+app.get("/scrape", function(req, res){
+	request("https://news.ycombinator.com/", function (error, response, html) {
+    var $ = cheerio.load(html);
+    $("td.title:nth-child(3)>a").each(function(i, element) {
+
+      var articleTitle = $(element).text();
+      var articleLink = $(element).attr('href');
+      var insertedArticle = new Article({
+        title : articleTitle,
+        link: articleLink
+       });
+
+      insertedArticle.save(function(err, dbArticle) {
+        if (err) {
+          console.log(err);
+        } else {
+          // console.log(dbArticle);
+        }
+      });
+    });
+    res.render('index');
+  });
+});
+
+
+app.get("/data", function (req, res) {
+	Article.find({}, function(err, data){
+   if (err){
+     throw err;
+   }
+   console.log(Article);
+  });
+  res.render('data'); 
+});
 
 app.listen(PORT, function(){
   console.log("Server listening at " + PORT);
