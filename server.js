@@ -57,7 +57,7 @@ db.on('error', function(err) {
 -------------------------------------------------*/
 
 var Note = require('./models/noteModel.js');
-var Article = require('./models/articleModel.js');
+var Data = require('./models/dataModel.js');
 
 app.listen(PORT, function(){
   console.log("Server listening at " + PORT);
